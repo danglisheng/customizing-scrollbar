@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>自定义滚动条</title>
+  <link rel="stylesheet" href="resource/reset.css">
+  <script src="resource/jquery-3.2.1.js"></script>
+  <style>
+    html,body{
+      height:100%;
+      width:100%;
+      background-color:#898898;
+          }
+    .scroll-demo{
+      position:relative;
+      width:540px;
+      height:340px;
+      margin:20px auto;
+      background-color:#fff;
+      border:solid 1px #e5e5e5;
+    }
+    .scroll-tab{
+      width:100%;
+      height:36px;
+      border-bottom:solid 1px #aaa;
+      background-color:#dfdfdf;
+      color:#666;
+    }
+    .tab-item{
+      display:inline-block;
+      width:84px;
+      height:36px;
+      line-height:36px;
+      text-align:center;
+      
+      border-right:solid 1px #999;
+      float:left;
+      cursor:pointer;
+
+    }
+    .tab-active{
+      border-top:solid 2px #56ff67;
+      color:#56ff67;
+      background-color:#fff;
+      margin:-1px 0;
+    }
+    .scroll-wrap{
+      position:relative;
+      height:304px;
+    }
+    .scroll-cont{
+      overflow:hidden;
+      width:100%;
+      height:100%;
+      text-align:center;
+    }
+    .scroll-cont h3{
+      font:16px/3 "Microsoft Yahei";
+    }
+    .scroll-bar{
+      position:absolute;
+      top:0;
+      right:0;
+      width:10px;
+      height:100%;
+      background-color:#e3e3e3;
+    }
+    .scroll-bar .scroll-slider{
+      width:8px;
+      height:30px;
+      
+      position:absolute;
+      top:0;
+      left:1px;
+      border-radius:3px;
+      background-color:#335599;
+
+    }
+  </style>
+</head>
+<body>
+  <div class="scroll-demo">
+    <ul class="scroll-tab">
+        <li class="tab-item tab-active">第1篇</li>
+        <li class="tab-item">第2篇</li>
+        <li class="tab-item">第3篇</li>
+        <li class="tab-item">第4篇</li>
+    </ul>
+    <div class="scroll-wrap">
+      <div class="scroll-cont">
+        <h3 class="anchor">春天来了</h3>
+        <div class="scroll-ol">
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+          <p>1</p>
+        </div>
+        <h3 class="anchor">夏天来了</h3>
+        <div class="scroll-ol">
+          <p>2</p>
+          <p>2</p>
+          <p>2</p>
+          <p>2</p>
+          <p>2</p>
+          <p>2</p>
+          <p>2</p>
+          <p>2</p>
+          <p>2</p>
+          <p>2</p>
+        </div>
+        <h3 class="anchor">秋天来了</h3>
+        <div class="scroll-ol">
+          <p>3</p>
+          <p>3</p>
+          <p>3</p>
+          <p>3</p>
+          <p>3</p>
+          <p>3</p>
+          <p>3</p>
+          <p>3</p>
+          <p>3</p>
+          <p>3</p>
+        </div>
+        <h3 class="anchor">冬天来了</h3>
+        <div class="scroll-ol">
+          <p>4</p>
+          <p>4</p>
+          <p>4</p>
+          <p>4</p>
+          <p>4</p>
+          <p>4</p>
+          <p>4</p>
+          <p>4</p>
+          <p>4</p>
+          <p>4</p>
+        </div>
+        <div class="correct-bot"></div> <!--通过加添元素，来补足最后一篇的高度。-->
+      </div>
+      <div class="scroll-bar">
+        <div class="scroll-slider"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function(win,doc,$){
+      function CusScrollbar(options){
+         this._init(options);
+      }
+      $.extend(CusScrollbar.prototype,{
+        _init:function(options){
+          var self=this;
+          self.options={
+            scrollDir:"y", //滚动方向
+            contSelector:"",//滚动内容选择器
+            barSelector:"",//滚动条选择器
+            sliderSelector:"",//滑块选择器
+            tabItemSelector:".tab-item",//标签项选择器
+            tabActiveClass:"tab-active",//标签活动类
+            AnchorSelector:".anchor",//锚点选择器
+            correctSelector:".correct-bot",//校正元素选择器
+            articleSelector:".scroll-ol",
+            wheelStep:10 //鼠标滚轮步长
+          }
+          $.extend(true,self.options,options||{});
+          self._initDomEvent();
+          return self;
+        },
+        _initDomEvent:function(){
+          var opts=this.options;
+          this.$cont=$(opts.contSelector);
+          this.$bar=$(opts.barSelector);
+          this.$slider=$(opts.sliderSelector);
+          this.$doc=$(doc);
+          this.$tabItem=$(opts.tabItemSelector);
+          this.tabActive=opts.tabActiveClass;
+          this.$anchor=$(opts.AnchorSelector);
+          this.$article=$(opts.articleSelector);
+          this.$correct=$(opts.correctSelector);
+          this._initDragStart()._bindScrollEvent()._bindMousewheel()._initTabSelectEvent()._initArticleHeight();
+        },
+        _initArticleHeight:function(){
+          var self=this;
+          var lastArticleHeight=self.$article.last().height();
+          var contHeight=self.$cont.height();
+          if(lastArticleHeight<contHeight){
+            self.$correct[0].style.height=contHeight-lastArticleHeight-self.$anchor.outerHeight()+"px";
+          }
+          return self;
+        },
+        _initDragStart:function(){
+          var self=this,
+              $slider=self.$slider,
+              sliderEl=self.$slider[0],
+              doc=self.$doc;
+          if(sliderEl){
+            $slider.on("mousedown",function(e){
+              e.preventDefault();
+              var pageStartPosition,
+                  scrollStartPosition,
+                  scrollRate;
+              pageStartPosition=e.pageY;
+              scrollStartPosition=self.$cont.scrollTop();
+              scrollRate=self.getMaxScrollPosition()/self.getMaxSliderPosition();
+              console.log("mousedown");
+              function mousemoveHandler(e){
+                e.preventDefault();
+                var cursorPos=e.pageY;
+                self.scrollTo(scrollStartPosition+(cursorPos-pageStartPosition)*scrollRate);
+              }
+              doc.on("mousemove.scroll",mousemoveHandler).
+              on("mouseup.scroll",function(e){
+                console.log("mouseup");
+                doc.off(".scroll");
+              })
+
+            })
+          }
+          return self;
+        },
+        _initTabSelectEvent:function(){
+          var self=this;
+          self.$tabItem.on("click",function(e){
+            e.preventDefault();
+            var index=$(this).index();
+            self.changeTabSelect(index);
+            self.scrollTo(self.getAnchorPosition(index));
+          });
+          return self;
+        },
+        _bindScrollEvent:function(){
+          var self=this;
+          self.$cont.on("scroll",function(e){
+            var sliderPos=self.getSliderPosition();
+            self.$slider[0].style.top=sliderPos+"px";
+          });
+          return self;
+        },
+        _bindMousewheel:function(){
+          var self=this;
+          self.$cont.on("mousewheel DOMMouseScroll",function(e){
+            e.preventDefault();
+            var oEv=e.originalEvent,
+                wheelRange=oEv.wheelDelta?-oEv.wheelDelta/120:(oEv.detail||0)/3;
+            self.scrollTo(self.$cont.scrollTop()+wheelRange*self.options.wheelStep);
+          });
+          return self;
+        },
+        changeTabSelect:function(index){
+          var self=this;
+          self.$tabItem.eq(index).addClass(self.tabActive).siblings().removeClass(self.tabActive);
+        },
+        getAnchorPosition:function(index){
+          return this.$cont.scrollTop()+$(this.$anchor[index]).position().top;
+        },
+        getAllAnchorsPosition:function(){
+          var allAnchorsPosArr=[],
+              self=this;
+          for(var i=0;i<self.$anchor.length;i++){
+            allAnchorsPosArr.push(self.getAnchorPosition(i));
+          }
+          return allAnchorsPosArr;
+        },
+        getSliderPosition:function(){
+          return this.$cont.scrollTop()*this.getMaxSliderPosition()/this.getMaxScrollPosition();
+        },
+        //获取最大滚动高度
+        getMaxScrollPosition:function(){
+          return this.$cont[0].scrollHeight-this.$cont.height();
+        },
+        getMaxSliderPosition:function(){
+          return this.$bar.height()-this.$slider.height();
+        },
+        scrollTo(positionVal){
+          var self=this;
+          var posArr=self.getAllAnchorsPosition();
+          function getIndex(){
+            for(var i=posArr.length-1;i>=0;i--){
+              if(positionVal>=posArr[i]){
+                return i;
+              }
+              else{
+                continue;
+              }
+            }
+          }
+          if(posArr.length==self.$tabItem.length){
+            self.changeTabSelect(getIndex());
+          }
+          self.$cont.scrollTop(positionVal);
+        }
+      });
+       win.CusScrollbar=CusScrollbar;
+    })(window,document,jQuery);
+    var scroller=new CusScrollbar({
+      contSelector:".scroll-cont",
+      barSelector:".scroll-bar",
+      sliderSelector:".scroll-slider"
+    })
+  </script>
+</body>
+</html>
